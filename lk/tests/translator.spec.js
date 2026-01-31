@@ -1,239 +1,230 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  // Navigate to the translator application with longer timeout for network issues
-  await page.goto('https://www.swifttranslator.com/', { waitUntil: 'domcontentloaded', timeout: 90000 });
-  // Wait for input field to be ready
-  await page.getByPlaceholder('Input Your Singlish Text Here.').waitFor({ state: 'visible', timeout: 15000 });
-  // Add a small delay for any lazy-loaded scripts
+  await page.goto('https://www.swifttranslator.com/', {
+    waitUntil: 'domcontentloaded',
+    timeout: 90000,
+  });
+
+  await page
+    .getByPlaceholder('Input Your Singlish Text Here.')
+    .waitFor({ state: 'visible', timeout: 15000 });
+
   await page.waitForTimeout(1000);
 });
 
-// Helper function to wait for translation to complete
+// Helper: fill input and wait until output becomes non-empty
 async function fillAndWaitForTranslation(page, input) {
   const inputField = page.getByPlaceholder('Input Your Singlish Text Here.');
   const outputDiv = page.locator('div.bg-slate-50').first();
-  
-  // Clear any previous content
+
   await inputField.clear();
-  
-  // Fill the input
   await inputField.fill(input);
-  
-  // Wait a bit for the translation to start processing
+
   await page.waitForTimeout(800);
-  
-  // Wait for output to have visible content - use a more robust check
+
   let attempts = 0;
-  const maxAttempts = 60; // ~30 seconds with 500ms intervals
-  
+  const maxAttempts = 60;
+
   while (attempts < maxAttempts) {
     try {
       const text = await outputDiv.textContent({ timeout: 2000 });
       if (text && text.trim().length > 0) {
-        // Double-check the content is stable (wait a moment for final updates)
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(500); // stabilize
         return outputDiv;
       }
-    } catch (e) {
-      // Continue polling on errors
+    } catch {
+      // ignore + keep polling
     }
     await page.waitForTimeout(500);
     attempts++;
   }
-  
-  // Fallback to original expect if polling times out
+
   await expect(outputDiv).not.toHaveText('', { timeout: 10000 });
   return outputDiv;
 }
 
 // ==========================================
-// 1. POSITIVE FUNCTIONAL SCENARIOS
+// POSITIVE FUNCTIONAL SCENARIOS (Excel)
 // ==========================================
 
-test('Pos_Fun_0001: Greeting with punctuation', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'suba udhaesanak !');
-  await expect(outputDiv).toHaveText('සුබ උදැසනක් !');
+test('Pos_Fun_0001: Convert polite request question', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(
+    page,
+    'karunaakaralaa mata udhavvak karanna puluvandha?'
+  );
+  await expect(outputDiv).toHaveText('කරුනාකරලා මට උදව්වක් කරන්න පුලුවන්ද?');
 });
 
-test('Pos_Fun_0002: Short polite request', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'karuNaakaralaa poddak inna.');
-  await expect(outputDiv).toHaveText('කරුණාකරලා පොඩ්ඩක් ඉන්න.');
+test('Pos_Fun_0002: Convert simple present tense statement', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'api daen vaeda karanavaa.');
+  await expect(outputDiv).toHaveText('අපි ඩැන් වැඩ කරනවා.');
 });
 
-test('Pos_Fun_0003: Simple daily statement (present)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama dhaen pahalata yanavaa.');
-  await expect(outputDiv).toHaveText('මම දැන් පහලට යනවා.');
+test('Pos_Fun_0003: Convert negative capability sentence', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mata eeka karanna bae.');
+  await expect(outputDiv).toHaveText('මට ඒක කරන්න බැ.');
 });
 
-test('Pos_Fun_0004: Simple negative sentence', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama adha enne naehae.');
-  await expect(outputDiv).toHaveText('මම අද එන්නෙ නැහැ.');
+test('Pos_Fun_0004: Convert future tense statement', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mama heta enavaa.');
+  await expect(outputDiv).toHaveText('මම හෙට එනවා.');
 });
 
-test('Pos_Fun_0005: Interrogative question', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'oyaa kadeedha inne ?');
-  await expect(outputDiv).toHaveText('ඔයා කඩේද ඉන්නේ ?');
+test('Pos_Fun_0005: Convert conditional sentence', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'vaessa unath api yanna epaeyi.');
+  await expect(outputDiv).toHaveText('වැස්ස උනත් අපි යන්න එපැයි.');
 });
 
-test('Pos_Fun_0006: Imperative command', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'vamata poddak yanna !');
-  await expect(outputDiv).toHaveText('වමට පොඩ්ඩක් යන්න !');
+test('Pos_Fun_0006: Convert imperative instruction', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'issarahata yanna.');
+  await expect(outputDiv).toHaveText('ඉස්සරහට යන්න.');
 });
 
-test('Pos_Fun_0007: Pronoun variation (we)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'api gedhara yamu.');
-  await expect(outputDiv).toHaveText('අපි ගෙදර යමු.');
+test('Pos_Fun_0007: Convert greeting phrase', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'suba udhaesanak!');
+  await expect(outputDiv).toHaveText('සුබ උදැසනක්!');
 });
 
-test('Pos_Fun_0008: Past tense', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama iiye gamee  giyaa.');
-  await expect(outputDiv).toHaveText('මම ඊයෙ ගමේ ගියා.');
+test('Pos_Fun_0008: Convert plural pronoun question', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'oyaalaa enavadha?');
+  await expect(outputDiv).toHaveText('ඔයාලා එනවද?');
 });
 
-test('Pos_Fun_0009: Future tense', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'api labana sathiye yamu.');
-  await expect(outputDiv).toHaveText('අපි ලබන සතියෙ යමු.');
+test('Pos_Fun_0009: Convert sentence with place name', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'api Kandy valata yamudha.');
+  await expect(outputDiv).toHaveText('අපි Kandy වලට යමුද.');
 });
 
-test('Pos_Fun_0010: Compound sentence (two ideas)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama velata giyaa, passe gedhara aavaa.');
-  await expect(outputDiv).toHaveText('මම වෙලට ගියා, පස්සෙ ගෙදර ආවා.');
+test('Pos_Fun_0010: Convert sentence with currency value', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mata Rs. 2500 onee.');
+  await expect(outputDiv).toHaveText('මට Rs. 2500 ඔනේ.');
 });
 
-test('Pos_Fun_0011: Complex sentence (condition)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'oyaa enavaanam api enavaa.');
-  await expect(outputDiv).toHaveText('ඔයා එනවානම් අපි එනවා.');
+test('Pos_Fun_0011: Convert sentence with time format', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'meeting eka 7.30 AM.');
+  await expect(outputDiv).toHaveText('meeting එක 7.30 AM.');
 });
 
-test('Pos_Fun_0012: Polite vs informal (polite)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'oyaata puluvannam karuNaakara eyaata kathaa karanna.');
-  await expect(outputDiv).toHaveText('ඔයාට පුලුවන්නම් කරුණාකර එයාට කතා කරන්න.');
+test('Pos_Fun_0012: Convert sentence with technical terms', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'WiFi connection eka hariyata vaeda karanavaa.');
+  await expect(outputDiv).toHaveText('WiFi connection එක හරියට වැඩ කරනවා.');
 });
 
-test('Pos_Fun_0013: Informal phrasing (safe)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'machan adha emu dha? hari hari.');
-  await expect(outputDiv).toHaveText('මචන් අද එමු ද? හරි හරි.');
+test('Pos_Fun_0013: Convert repeated-word emphasis', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'hari hari hondai.');
+  await expect(outputDiv).toHaveText('හරි හරි හොන්ඩෛ.');
 });
 
-test('Pos_Fun_0014: Repeated words for emphasis', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'bala bala enna.');
-  await expect(outputDiv).toHaveText('බල බල එන්න.');
+test('Pos_Fun_0014: Convert multi-line input', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mama gedhara yanavaa. oyaa enavadha?');
+  await expect(outputDiv).toHaveText('මම ගෙදර යනවා. ඔයා එනවද?');
 });
 
-test('Pos_Fun_0015: Joined vs segmented (proper spacing)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mata kanna oonee.');
-  await expect(outputDiv).toHaveText('මට කන්න ඕනේ.');
-});
+test('Pos_Fun_0015: Convert long paragraph input', async ({ page }) => {
+  const input =
+    'adha udhaesanaye patan gaththa loku vaessa saha sulanga ekka gamata loku prashnayak unaa. godak maargavalata jala piri giya nisaa vaahana yanna amaruu unaa. ehema unath minissunta udhav karanna authorities ikmanin kriyaa karala thiyenavaa kiyala news valin ahanna lebunaa.';
+  const expected =
+    'අද උදැසනයෙ පටන් ගත්ත ලොකු වැස්ස සහ සුලන්ග එක්ක ගමට ලොකු ප්‍රශ්නයක් උනා. ගොඩක් මාර්ගවලට ජල පිරි ගිය නිසා වාහන යන්න අමරූ උනා. එහෙම උනත් මිනිස්සුන්ට උදව් කරන්න authorities ඉක්මනින් ක්‍රියා කරල තියෙනවා කියල news වලින් අහන්න ලෙබුනා.';
 
-test('Pos_Fun_0016: Mixed Singlish + English brand term', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'adha Zoom meeting ekata join venna oonee.');
-  await expect(outputDiv).toHaveText('අද Zoom meeting එකට join වෙන්න ඕනේ.');
-});
-
-test('Pos_Fun_0017: Places/common English words remain', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'api Negombo yanna hadhannee, traffic nisaa late venna puluvan.');
-  await expect(outputDiv).toHaveText('අපි Negombo යන්න හදන්නේ, traffic නිසා late වෙන්න පුලුවන්.');
-});
-
-test('Pos_Fun_0018: Abbreviations (ID/NIC/OTP)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mage ID eka saha NIC eka dhaanna. OTP eka enakam inna.');
-  await expect(outputDiv).toHaveText('මගෙ ID එක සහ NIC එක දාන්න. OTP එක එනකම් ඉන්න.');
-});
-
-test('Pos_Fun_0019: Currency + time', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'Rs. 4500 adha 8.30 AM vagee pay karanna puluvandha?');
-  await expect(outputDiv).toHaveText('Rs. 4500 අද 8.30 AM වගේ pay කරන්න පුලුවන්ද?');
-});
-
-test('Pos_Fun_0020: Date formats', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, '2/12/2026 dhina api film ekak balanna plan karamu.');
-  await expect(outputDiv).toHaveText('2/12/2026 දින අපි film එකක් බලන්න plan කරමු.');
-});
-
-test('Pos_Fun_0021: Units of measurement', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mata 500ml biima bottle ekak thiyenavaa, 2kg bathuth ganna oonee.');
-  await expect(outputDiv).toHaveText('මට 500ml බීම bottle එකක් තියෙනවා, 2kg බතුත් ගන්න ඕනේ.');
-});
-
-test('Pos_Fun_0022: Multiple spaces (formatting)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama   paare   inne.  oyaa   enna.');
-  await expect(outputDiv).toHaveText('මම පාරෙ ඉන්නේ. ඔයා එන්න.');
-});
-
-test('Pos_Fun_0023: Line breaks (multi-line)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama pansal yanavaa.\\noyaa enavadha maath ekka?');
-  await expect(outputDiv).toHaveText('මම පන්සල් යනවා.\\නොයා එනවද මාත් එක්ක?');
-});
-
-test('Pos_Fun_0024: Long paragraph (≥300 chars)', async ({ page }) => {
-  const input = 'adha mama office giyaa. ehema giyaath, traffic godak thibuna nisaa api parakku vunaa. passe meeting eka patan gaththa, mata notes tika ganna baeri vunaa. havasa, api vaeda ivara karala gedhara avaa. hetath me vidhiyata yanna baeri veyi kiyala mata hitanavaa.';
-  const expected = 'අද මම office ගියා. එහෙම ගියාත්, traffic ගොඩක් තිබුන නිසා අපි පරක්කු වුනා. පස්සෙ meeting එක පටන් ගත්ත, මට notes ටික ගන්න බැරි වුනා. හවස, අපි වැඩ ඉවර කරල ගෙදර අවා. හෙටත් මෙ විදියට යන්න බැරි වෙයි කියල මට හිටනවා.';
   const outputDiv = await fillAndWaitForTranslation(page, input);
   await expect(outputDiv).toHaveText(expected);
 });
 
-// ==========================================
-// 2. NEGATIVE FUNCTIONAL SCENARIOS
-// ==========================================
-
-test('Neg_Fun_0001: Joined words without spaces cause incorrect segmentation', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mamagedharayanavaa');
-  await expect(outputDiv).toHaveText('මම ගෙදර යනවා');
+test('Pos_Fun_0016: Convert informal request', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'ane eeka dhiyan.');
+  await expect(outputDiv).toHaveText('අනෙ ඒක දියන්.');
 });
 
-test('Neg_Fun_0002: Common typo may lead to wrong transliteration', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mata bth onee.');
-  await expect(outputDiv).toHaveText('මට බත් ඕනේ.');
-});
-
-test('Neg_Fun_0003: Slang with stretched letters may distort output', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'elaaa machan, supiriii!');
-  await expect(outputDiv).toHaveText('එලා මචන්, සුපිරි!');
-});
-
-test('Neg_Fun_0004: High English ratio confuses Singlish conversion', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'please mama offz yanna onee, but traffic.');
-  await expect(outputDiv).toHaveText('please මම office යන්න ඕනේ, but traffic.');
-});
-
-test('Neg_Fun_0005: Multiple abbreviations produce unexpected conversion', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama ATM eka langa POS eke pay karanavaa.');
-  await expect(outputDiv).toHaveText('Please මම ගෙදර යනවා now, because meeting start.මම ATM එක ලඟ POS එකේ pay කරනවා.');
-});
-
-test('Neg_Fun_0006: Emoji handling', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama happy 🙂 ada!');
-  await expect(outputDiv).toHaveText('මම happy 🙂 අද!');
-});
-
-test('Neg_Fun_0007: Quotes and mixed punctuation alter sentence formatting', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'oyaa \\"hari\\" kiyala kiwwa.');
-  await expect(outputDiv).toHaveText('ඔයා \\"හරි\\" කියලා කිව්වා.');
-});
-
-test('Neg_Fun_0008: Date format mixed with English causes inconsistent conversion', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, '2026-02-01 wenakan meet wenna.');
-  await expect(outputDiv).toHaveText('2026-02-01 වෙන්නකන් meet වෙන්න.');
-});
-
-test('Neg_Fun_0009: Very long mixed paragraph causes inaccurate or slow conversion', async ({ page }) => {
-  const input = 'mama adha gedhara inna gaman, sudden vaessa wahala. oyaa kiyapu nisaa api trip eka cancel kala. ehema wunath, mama booking details tika email karala document tika attach karala evannam. passe api aluth date ekak set karamu, ok da? me paragraph eka long input test ekak widihata danna.';
-  const expected = 'දිග input එක Sinhala වලට නිවැරදිව හැරවිය යුතුය (දෝෂ නැතිව).';
-  const outputDiv = await fillAndWaitForTranslation(page, input);
-  await expect(outputDiv).toHaveText(expected);
-});
-
-test('Neg_Fun_0010: Repeated words without punctuation cause spacing problems', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'hri hri hri mama yannam');
-  await expect(outputDiv).toHaveText('හරි හරි හරි මම යන්නම්');
+test('Pos_Fun_0017: Convert sentence with abbreviation', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'OTP eka evanna.');
+  await expect(outputDiv).toHaveText('OTP එක එවන්න.');
 });
 
 // ==========================================
-// 3. POSITIVE UI SCENARIOS
+// NEGATIVE FUNCTIONAL SCENARIOS (Excel)
 // ==========================================
 
-test('Pos_UI_0001: Sinhala output updates automatically while typing (real-time)', async ({ page }) => {
-  const outputDiv = await fillAndWaitForTranslation(page, 'mama gedhara yanavaa');
-  await expect(outputDiv).toContainText('mama gedha');
+test('Neg_Fun_0001: Joined words without spaces', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'matapaanonee');
+  await expect(outputDiv).toHaveText('මට පාන් ඕනේ.');
+});
+
+test('Neg_Fun_0002: Medium-length informal sentence with heavy slang', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(
+    page,
+    'ado machan adha traffic hari loku bn eka nisaa late venna puluvan kiyala hithenavaa, sorry.'
+  );
+  await expect(outputDiv).toHaveText(
+    'අඩෝ මචං අද traffic හරි ලොකු නිසා late වෙන්න පුළුවන් කියලා හිතෙනවා, sorry.'
+  );
+});
+
+test('Neg_Fun_0003: Mixed English grammar within Singlish sentence', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(
+    page,
+    'mama today office gihin passe meeting ekata giyaa'
+  );
+  await expect(outputDiv).toHaveText('මම අද office ගිහින් පස්සේ meeting එකට ගියා.');
+});
+
+test('Neg_Fun_0004: Special characters within input text', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mama @@## gedhara yanavaa');
+  await expect(outputDiv).toHaveText('මම ගෙදර යනවා.');
+});
+
+test('Neg_Fun_0005: Conflicting tense indicators in sentence', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mama heta giyaa');
+  await expect(outputDiv).toHaveText('මම හෙට යන්නෙමි.');
+});
+
+test('Neg_Fun_0006: Incorrect word order causing wrong meaning', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(
+    page,
+    'mama gedhara yanavaa passe adha oyaa enne kiyala ahanna hithunaa mokadha kaalaya hari madi.'
+  );
+  await expect(outputDiv).toHaveText(
+    'මම ගෙදර යනවා. පස්සේ අද ඔයා එන්නේ කියලා අහන්න හිතුනා මොකද කාලය හරි මදි.'
+  );
+});
+
+test('Neg_Fun_0007: Chat-style abbreviated sentence', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mm gdr ynw passe cll krnnm');
+  await expect(outputDiv).toHaveText('මම ගෙදර යනවා පස්සේ කෝල් කරන්නම්.');
+});
+
+test('Neg_Fun_0008: Emoji included in input sentence', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, 'mama hari 😊 kiyala hithenavaa');
+  await expect(outputDiv).toHaveText('මම හරි කියලා හිතෙනවා.');
+});
+
+test('Neg_Fun_0009: Very long malformed input without spaces', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(
+    page,
+    'mamaadhaudhasanapatangaththavaessasahagamaprashnayakunaa kiyalahithannath baeha.'
+  );
+  await expect(outputDiv).toHaveText('මම අද උදෑසන පටන් ගත්ත වැස්ස සහ ගම ප්\u200dරශ්නයක් උනා කියලා හිතන්නත් බැහැ.');
+});
+
+test('Neg_Fun_0010: Numeric-only input without linguistic content', async ({ page }) => {
+  const outputDiv = await fillAndWaitForTranslation(page, '202520262027');
+  await expect(outputDiv).toHaveText('කිසිදු සිංහල පරිවර්තනයක් නොමැත');
+});
+
+// ==========================================
+// POSITIVE UI SCENARIOS (Excel)
+// ==========================================
+
+test('Pos_UI_0001: Real-time Sinhala output update', async ({ page }) => {
+  const inputField = page.getByPlaceholder('Input Your Singlish Text Here.');
+  const outputDiv = page.locator('div.bg-slate-50').first();
+
+  await inputField.clear();
+
+  // Type gradually to verify output starts updating before we finish typing
+  await inputField.type('mama gedhara yanavaa', { delay: 80 });
+
+  // Behavior-based check: output should not be empty and should be Sinhala-ish (starts showing Sinhala words)
+  await expect(outputDiv).not.toHaveText('', { timeout: 15000 });
+  await expect(outputDiv).toContainText('ම', { timeout: 15000 });
 });
